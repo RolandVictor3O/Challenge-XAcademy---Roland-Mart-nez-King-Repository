@@ -272,24 +272,58 @@ export class App implements OnInit {
   // PUNTO EXTRA: Captura e importa el CSV a la base de datos
   async onCsvFileSelected(event: any) {
     const file: File = event.target.files[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append('file', file); 
+    if (!file) return;
 
-      try {
-        alert('Subiendo archivo al servidor de Base de Datos...');
-        await fetch('http://localhost:3000/players/import-csv', {
-          method: 'POST',
-          body: formData
-        });
+    const reader = new FileReader();
+    reader.onload = async (e: any) => {
+      const text = e.target.result;
+      // Dividimos el archivo por filas
+      const lines = text.split(/\r?\n/);
+      
+      // La primera línea son las cabeceras (headers), las salteamos
+      console.log('Cabeceras detectadas:', lines[0]);
+      
+      let guardadosExitosos = 0;
+
+      // Recorremos las filas de datos
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Si la línea está vacía, la saltea mágicamente
+
+        // Separamos los campos por coma
+        const columns = line.split(',');
         
-        alert('¡Lote de datos CSV importado con éxito!');
-        await this.loadPlayers(); // Recargamos la tabla
-      } catch (error) {
-        console.error('Error al importar:', error);
-        alert('Error al procesar el archivo CSV en el backend.');
+        // Mapeamos los datos cuidando que no tengan comillas residuales
+        const playerObj = {
+          name: columns[0]?.replace(/['"]/g, '').trim(),
+          club: columns[1]?.replace(/['"]/g, '').trim(),
+          position: columns[2]?.replace(/['"]/g, '').trim(),
+          nationality: columns[3]?.replace(/['"]/g, '').trim(),
+          overall: Number(columns[4]) || 0
+        };
+
+        // Validamos que por lo menos tenga nombre para no mandar basura
+        if (playerObj.name) {
+          try {
+            // Reutilizamos el endpoint POST que ya sabemos que te funciona de diez
+            await fetch('http://localhost:3000/players', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(playerObj)
+            });
+            guardadosExitosos++;
+          } catch (err) {
+            console.error(`Error guardando la fila ${i}:`, err);
+          }
+        }
       }
-    }
+
+      alert(`¡Proceso terminado! Se importaron ${guardadosExitosos} jugadores con éxito.`);
+      await this.loadPlayers(); // Refrescamos la tabla al instante
+      event.target.value = ''; // Limpiamos el input
+    };
+
+    reader.readAsText(file);
   }
 
   // Convierte la lista actual filtrada a un archivo CSV descargable

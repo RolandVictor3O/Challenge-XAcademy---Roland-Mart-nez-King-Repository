@@ -1,0 +1,171 @@
+@if (!isLoggedIn) {
+  <div style="max-width: 350px; margin: 100px auto; padding: 30px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif; text-align: center;">
+    <h2 style="color: #333; margin-bottom: 20px;">FIFA X Academy</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Iniciá sesión para administrar los jugadores</p>
+    
+    <div style="margin-bottom: 12px;">
+      <input type="text" [(ngModel)]="loginData.username" placeholder="Usuario (admin)" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+    <div style="margin-bottom: 20px;">
+      <input type="password" [(ngModel)]="loginData.password" placeholder="Contraseña (1234)" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+    
+    <button (click)="login()" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+      Ingresar al Sistema
+    </button>
+  </div>
+} @else {
+  <div style="max-width: 950px; margin: 20px auto; padding: 20px; font-family: sans-serif;">
+    
+    <div style="text-align: right; margin-bottom: 10px;">
+      <span style="margin-right: 15px; color: #555;">Conectado como <strong>Admin</strong></span>
+      <button (click)="logout()" style="padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Cerrar Sesión
+      </button>
+    </div>
+
+    <h1>FIFA X Academy</h1>
+
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
+      <legend style="font-weight: bold; padding: 0 5px; color: #333;">
+        {{ isEditing ? '📝 Editar Jugador Seleccionado' : '➕ Registrar Nuevo Jugador (¡Create a vos mismo!)' }}
+      </legend>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <input type="text" placeholder="Nombre" [(ngModel)]="newPlayer.name" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+        <input type="text" placeholder="Club" [(ngModel)]="newPlayer.club" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+        <input type="text" placeholder="Posición" [(ngModel)]="newPlayer.position" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100px;">
+        <input type="text" placeholder="Nacionalidad" [(ngModel)]="newPlayer.nationality" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+        <input type="number" placeholder="Overall" [(ngModel)]="newPlayer.overall" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 80px;">
+
+        @if (isEditing) {
+          <button (click)="updatePlayer()" style="padding: 7px 12px; background: #ffc107; color: black; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+            Actualizar
+          </button>
+          <button (click)="isEditing = false; newPlayer = { name: '', club: '', position: '', nationality: '', overall: 0 }" style="padding: 7px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Cancelar
+          </button>
+        } @else {
+          <button (click)="addPlayer()" style="padding: 7px 12px; background: #007bff; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+            Guardar
+          </button>
+        }
+      </div>
+    </fieldset>
+
+    <div [formGroup]="filterForm" style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #e9ecef; padding: 10px; border-radius: 6px;">
+      <strong style="color: #495057; font-size: 14px;">Filtros:</strong>
+      <input type="text" formControlName="name" placeholder="Buscar por nombre..." style="padding: 5px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 150px;">
+      <input type="text" formControlName="club" placeholder="Buscar por club..." style="padding: 5px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 150px;">
+      <input type="text" formControlName="position" placeholder="Posición (Ej: ST)" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 110px;">
+      
+      <button (click)="exportToCsv()" style="padding: 6px 12px; background-color: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 4px;">
+        📥 Exportar CSV
+      </button>
+
+      <input type="file" id="csvFileInput" (change)="onCsvFileSelected($event)" accept=".csv" style="display: none;">
+      <button (click)="triggerCsvUpload()" style="padding: 6px 12px; background-color: #6f42c1; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 4px;">
+        📤 Importar CSV
+      </button>
+    </div>
+
+    <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; border: 1px solid #dee2e6; margin-top: 10px;">
+      <thead style="background-color: #343a40; color: white;">
+        <tr>
+          <th style="text-align: left;">Nombre</th>
+          <th style="text-align: left;">Club</th>
+          <th style="text-align: left;">Posición</th>
+          <th style="text-align: left;">Overall</th>
+          <th style="text-align: center; width: 220px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (player of pagedPlayers; track player.id) {
+          <tr style="border-bottom: 1px solid #dee2e6;">
+            <td>{{ player.name }}</td>
+            <td>{{ player.club }}</td>
+            <td><span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold;">{{ player.position }}</span></td>
+            <td><strong>{{ player.overall }}</strong></td>
+            <td style="text-align: center;">
+              <button (click)="selectPlayer(player)" style="padding: 4px 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                📊 Analizar
+              </button>
+              <button (click)="editPlayer(player)" style="padding: 4px 8px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 6px;">
+                ✏️ Editar
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" style="text-align: center; color: #6c757d; padding: 20px;">
+              No se encontraron jugadores que coincidan con los filtros.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+      <button (click)="prevPage()" [disabled]="currentPage === 1" style="padding: 5px 10px; cursor: pointer;">
+        ◀ Anterior
+      </button>
+      <span style="font-size: 14px; color: #495057;">
+        Página <strong>{{ currentPage }}</strong> de <strong>{{ totalPages }}</strong>
+      </span>
+      <button (click)="nextPage()" [disabled]="currentPage === totalPages" style="padding: 5px 10px; cursor: pointer;">
+        Siguiente ▶
+      </button>
+    </div>
+
+    @if (selectedPlayer) {
+      <div style="margin-top: 30px; padding: 20px; border: 1px solid #17a2b8; background: #f4fbfd; border-radius: 8px;">
+        <h3 style="margin-top: 0; color: #117a8b;">⚽ Panel de Rendimiento Avanzado: {{ selectedPlayer.name }}</h3>
+        <p style="font-size: 14px; color: #555; margin-bottom: 5px;">
+          <strong>Club:</strong> {{ selectedPlayer.club }} | <strong>Nacionalidad:</strong> {{ selectedPlayer.nationality }}
+        </p>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 15px;">
+          
+          <div style="flex: 1; min-width: 300px; max-width: 400px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <h4 style="margin: 0 0 10px 0; text-align: center; color: #333;">Atributos de Temporada</h4>
+            <canvas id="skillsChart"></canvas>
+          </div>
+
+          <div style="flex: 1; min-width: 300px; max-width: 400px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <h4 style="margin: 0 0 10px 0; text-align: center; color: #333;">📈 Línea de Tiempo (Evolución Histórica)</h4>
+            
+            <div style="text-align: center; margin-bottom: 10px;">
+              <label style="font-size: 12px; color: #666; font-weight: bold;">Habilidad evaluada: </label>
+              <select [(ngModel)]="selectedSkill" (change)="$any(this).onSkillChange()" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="pace">Velocidad (Pace)</option>
+                <option value="shooting">Tiro (Shooting)</option>
+                <option value="passing">Pase (Passing)</option>
+              </select>
+            </div>
+            
+            <canvas id="timelineChart"></canvas>
+          </div>
+
+        </div>
+
+        <div style="margin-top: 25px; background: #fff3cd; border: 1px solid #ffeeba; padding: 18px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+          <h4 style="margin: 0 0 8px 0; color: #856404; display: flex; align-items: center; gap: 6px; font-size: 15px;">
+            🤖 Análisis de Trayectoria Narrativo (LangChain)
+          </h4>
+          
+          @if (isLoadingAI) {
+            <p style="margin: 0; font-style: italic; color: #721c24; font-size: 14px;">
+              Procesando métricas históricas de rendimiento (2015-2023) en el modelo LLM...
+            </p>
+          } @else {
+            <p style="margin: 0; font-size: 14px; color: #533f03; line-height: 1.6; font-style: italic; background: rgba(255,255,255,0.5); padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;">
+              "{{ aiInsight }}"
+            </p>
+          }
+        </div>
+
+      </div>
+    }
+
+  </div>
+}

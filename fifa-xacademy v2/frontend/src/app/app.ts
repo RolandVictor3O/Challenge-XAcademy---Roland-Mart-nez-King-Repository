@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { JsonPipe, NgFor, NgIf } from '@angular/common'; 
+import { JsonPipe } from '@angular/common'; 
 import { FormsModule, FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-root',
-  imports: [JsonPipe, FormsModule, ReactiveFormsModule, NgFor, NgIf],
+  imports: [JsonPipe, FormsModule, ReactiveFormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -322,23 +322,26 @@ export class App implements OnInit {
     document.body.removeChild(link);
   }
 
-  // Guarda un nuevo jugador en la base de datos (POST) - Ej: Crearte a vos mismo
+  // FUNCIÓN CORREGIDA: Guarda un nuevo jugador usando la estructura async/await y fetch nativo
   async addPlayer() {
-    console.log('ENVIANDO:', this.newPlayer);
+    console.log("ENVIANDO AL SERVIDOR:", this.newPlayer);
+
+    if (!this.newPlayer.name || !this.newPlayer.club) {
+      alert('Por favor, completa al menos el Nombre y el Club del jugador.');
+      return;
+    }
 
     try {
+      // Hacemos la llamada real POST al backend usando fetch
       await fetch('http://localhost:3000/players', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.newPlayer)
       });
 
-      const response = await fetch('http://localhost:3000/players');
-      this.players = await response.json();
-      this.applyFilters();
-
+      console.log('¡Jugador guardado con éxito!');
+      
+      // Limpiamos los casilleros del formulario
       this.newPlayer = {
         name: '',
         club: '',
@@ -346,8 +349,13 @@ export class App implements OnInit {
         nationality: '',
         overall: 0
       };
+
+      // Recargamos los datos para ver al nuevo jugador en la tabla
+      await this.loadPlayers();
+
     } catch (error) {
-      console.error('Error al guardar:', error);
+      console.error('Error al intentar guardar en el servidor:', error);
+      alert('Ocurrió un error al intentar conectarse con el servidor.');
     }
   }
 }
